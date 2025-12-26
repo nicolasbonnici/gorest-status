@@ -1,5 +1,9 @@
 # GoREST Status Plugin
 
+[![CI](https://github.com/nicolasbonnici/gorest-status/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolasbonnici/gorest-status/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nicolasbonnici/gorest-status)](https://goreportcard.com/report/github.com/nicolasbonnici/gorest-status)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Status check endpoint plugin for GoREST framework.
 
 ## Installation
