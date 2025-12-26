@@ -101,8 +101,12 @@ func TestStatusPlugin_StatusCheckWithDatabase(t *testing.T) {
 	config := map[string]interface{}{
 		"database": &mockDatabase{pingError: nil},
 	}
-	plugin.Initialize(config)
-	plugin.SetupEndpoints(app)
+	if err := plugin.Initialize(config); err != nil {
+		t.Fatalf("Initialize failed: %v", err)
+	}
+	if err := plugin.SetupEndpoints(app); err != nil {
+		t.Fatalf("SetupEndpoints failed: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/status", nil)
 	resp, err := app.Test(req)
@@ -120,7 +124,9 @@ func TestStatusPlugin_StatusCheckDatabaseDown(t *testing.T) {
 	plugin := &StatusPlugin{
 		db: &mockDatabase{pingError: errors.New("connection failed")},
 	}
-	plugin.SetupEndpoints(app)
+	if err := plugin.SetupEndpoints(app); err != nil {
+		t.Fatalf("SetupEndpoints failed: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/status", nil)
 	resp, err := app.Test(req)
@@ -139,8 +145,12 @@ func TestStatusPlugin_StatusCheckNoDatabase(t *testing.T) {
 
 	// Initialize without database
 	config := map[string]interface{}{}
-	plugin.Initialize(config)
-	plugin.SetupEndpoints(app)
+	if err := plugin.Initialize(config); err != nil {
+		t.Fatalf("Initialize failed: %v", err)
+	}
+	if err := plugin.SetupEndpoints(app); err != nil {
+		t.Fatalf("SetupEndpoints failed: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/status", nil)
 	resp, err := app.Test(req)
