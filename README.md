@@ -35,13 +35,51 @@ plugins:
     enabled: true
 ```
 
+#### Advanced Configuration
+
+You can customize the endpoint path using plugin configuration:
+
+```yaml
+plugins:
+  - name: status
+    enabled: true
+    config:
+      endpoint: "health"  # Custom endpoint path (default: "status")
+```
+
+**Configuration Parameters:**
+
+- `endpoint` (string): Custom path for the health check endpoint. Default: `"status"`
+  - Example: `"health"` creates endpoint at `/health`
+  - Example: `"api/status"` creates endpoint at `/api/status`
+
+**Port Detection:**
+
+The plugin automatically detects the server port for logging purposes using the following priority:
+1. `port` parameter in plugin config (if provided)
+2. `PORT` environment variable
+3. `GOREST_PORT` environment variable
+4. Fiber app configuration
+5. Default: `8080`
+
+Example with explicit port:
+```yaml
+plugins:
+  - name: status
+    enabled: true
+    config:
+      endpoint: "health"
+      port: "3000"  # Optional: override automatic detection
+```
+
 ## Features
 
-- Status check endpoint at `/status`
+- Customizable status check endpoint (default: `/status`)
 - Database connectivity check
 - Returns HTTP 200 when healthy
 - Returns HTTP 503 when database is down
 - JSON response format
+- Startup logging with endpoint URL
 
 ## Response Format
 
