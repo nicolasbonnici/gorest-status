@@ -30,17 +30,30 @@ func (p *StatusPlugin) Name() string {
 
 func (p *StatusPlugin) Initialize(config map[string]interface{}) error {
 	p.config = config
+
+	// Log full config for debugging
+	logger.Log.Info("Status plugin Initialize called", "config_keys", getConfigKeys(config))
+
 	if db, ok := config["database"].(database.Database); ok {
 		p.db = db
 	}
 	if endpoint, ok := config["endpoint"].(string); ok {
 		p.endpoint = endpoint
-		logger.Log.Debug("Status plugin using custom endpoint from config", "endpoint", endpoint)
+		logger.Log.Info("Status plugin using custom endpoint from config", "endpoint", endpoint)
 	} else {
 		p.endpoint = "status" // default endpoint
-		logger.Log.Debug("Status plugin using default endpoint", "endpoint", p.endpoint)
+		logger.Log.Info("Status plugin using default endpoint", "endpoint", p.endpoint)
 	}
 	return nil
+}
+
+// Helper function to get config keys for debugging
+func getConfigKeys(config map[string]interface{}) []string {
+	keys := make([]string, 0, len(config))
+	for k := range config {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // Handler returns a no-op middleware since status endpoint is set up via SetupEndpoints
