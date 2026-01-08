@@ -53,24 +53,30 @@ plugins:
   - Example: `"health"` creates endpoint at `/health`
   - Example: `"api/status"` creates endpoint at `/api/status`
 
-**Port Detection:**
+**Server Configuration:**
 
-The plugin automatically detects the server port for logging purposes using the following priority:
-1. `port` parameter in plugin config (if provided)
-2. `PORT` environment variable
-3. `GOREST_PORT` environment variable
-4. Fiber app configuration
-5. Default: `8080`
+The plugin automatically receives server configuration from GoREST v0.4.4+ for accurate URL logging:
+- `server_scheme`: Protocol (http/https) - Default: `"http"`
+- `server_host`: Hostname or IP address - Default: `"localhost"`
+- `server_port`: Port number - Default: `8000`
 
-Example with explicit port:
+These parameters are automatically injected by GoREST based on your `gorest.yaml` server configuration. The plugin uses these values to display the correct health check URL in startup logs.
+
+Example server configuration in `gorest.yaml`:
 ```yaml
+server:
+  scheme: https
+  host: api.example.com
+  port: 443
+
 plugins:
   - name: status
     enabled: true
     config:
       endpoint: "health"
-      port: "3000"  # Optional: override automatic detection
 ```
+
+This will display: `Health check available at https://api.example.com:443/health`
 
 ## Features
 

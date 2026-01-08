@@ -32,8 +32,8 @@ github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byF
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
-github.com/nicolasbonnici/gorest v0.4.3 h1:s3FCU0S9bNqPC9Oi/sXDledC7lIgvr9xQ10mrOGgdJ0=
-github.com/nicolasbonnici/gorest v0.4.3/go.mod h1:BSJurebYU5fEBB7p4X9vfvdB5VJZtvYOYiKrmAEpXpU=
+github.com/nicolasbonnici/gorest v0.4.4 h1:VLAj+pqUO92qy8ln0iM0lCVnfQDPCGdIIgHxa1Y58Cc=
+github.com/nicolasbonnici/gorest v0.4.4/go.mod h1:asARsSZk+jmE9bYXSTt+1p8NwSeoFdfwrzlwIsOt+54=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=

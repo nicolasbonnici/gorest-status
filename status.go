@@ -3,8 +3,6 @@ package status
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +15,9 @@ import (
 type StatusPlugin struct {
 	db       database.Database
 	endpoint string
+	scheme   string
+	host     string
+	port     int
 	config   map[string]interface{}
 }
 
@@ -44,10 +45,29 @@ func (p *StatusPlugin) Initialize(config map[string]interface{}) error {
 		p.endpoint = "status" // default endpoint
 		logger.Log.Info("Status plugin using default endpoint", "endpoint", p.endpoint)
 	}
+
+	if scheme, ok := config["server_scheme"].(string); ok && scheme != "" {
+		p.scheme = scheme
+	} else {
+		p.scheme = "http" // default scheme
+	}
+
+	if host, ok := config["server_host"].(string); ok && host != "" {
+		p.host = host
+	} else {
+		p.host = "localhost" // default host
+	}
+
+	if port, ok := config["server_port"].(int); ok && port > 0 {
+		p.port = port
+	} else {
+		p.port = 8000 // default port
+	}
+
+	logger.Log.Debug("Status plugin server config", "scheme", p.scheme, "host", p.host, "port", p.port)
 	return nil
 }
 
-// Helper function to get config keys for debugging
 func getConfigKeys(config map[string]interface{}) []string {
 	keys := make([]string, 0, len(config))
 	for k := range config {
@@ -56,58 +76,28 @@ func getConfigKeys(config map[string]interface{}) []string {
 	return keys
 }
 
-// Handler returns a no-op middleware since status endpoint is set up via SetupEndpoints
 func (p *StatusPlugin) Handler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return c.Next()
 	}
 }
 
-// SetupEndpoints implements the optional EndpointSetup interface
 func (p *StatusPlugin) SetupEndpoints(app *fiber.App) error {
-	// Detect port from app configuration
-	port := p.detectPort(app)
-
-	logger.Log.Debug("Registering status endpoint", "path", "/"+p.endpoint, "port", port)
+	logger.Log.Debug("Registering status endpoint", "path", "/"+p.endpoint)
 	app.Get("/"+p.endpoint, p.statusCheckHandler())
-	logger.Log.Info("Health check available", "url", fmt.Sprintf("http://localhost:%s/%s", port, p.endpoint))
+
+	port := fmt.Sprintf("%d", p.port)
+
+	url := p.scheme + "://" + p.host
+	if (p.scheme == "http" && p.port != 80) ||
+		(p.scheme == "https" && p.port != 443) {
+		url += ":" + port
+	}
+
+	logger.Log.Info("Health check available", "url", fmt.Sprintf("%s/%s", url, p.endpoint))
 	return nil
 }
 
-// detectPort attempts to detect the port from various sources
-func (p *StatusPlugin) detectPort(app *fiber.App) string {
-	// 1. Check if port was provided in plugin config (backwards compatibility)
-	if p.config != nil {
-		if port, ok := p.config["port"].(string); ok && port != "" {
-			return port
-		}
-	}
-
-	// 2. Try to detect from environment variable PORT
-	if port := os.Getenv("PORT"); port != "" {
-		return port
-	}
-
-	// 3. Try to detect from GOREST_PORT environment variable
-	if port := os.Getenv("GOREST_PORT"); port != "" {
-		return port
-	}
-
-	// 4. Check Fiber app config for Network address
-	fiberConfig := app.Config()
-	if fiberConfig.Network != "" {
-		// Network format could be ":port" or "host:port"
-		parts := strings.Split(fiberConfig.Network, ":")
-		if len(parts) > 1 && parts[len(parts)-1] != "" {
-			return parts[len(parts)-1]
-		}
-	}
-
-	// 5. Default to 8080
-	return "8080"
-}
-
-// statusCheckHandler creates the status check handler
 func (p *StatusPlugin) statusCheckHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Perform status check

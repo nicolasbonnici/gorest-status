@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -125,6 +124,9 @@ func TestStatusPlugin_StatusCheckDatabaseDown(t *testing.T) {
 	plugin := &StatusPlugin{
 		db:       &mockDatabase{pingError: errors.New("connection failed")},
 		endpoint: "status",
+		scheme:   "http",
+		host:     "localhost",
+		port:     8000,
 	}
 	if err := plugin.SetupEndpoints(app); err != nil {
 		t.Fatalf("SetupEndpoints failed: %v", err)
@@ -203,73 +205,77 @@ func TestStatusPlugin_CustomEndpoint(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_PortDetection(t *testing.T) {
+func TestStatusPlugin_ServerConfigParsing(t *testing.T) {
 	tests := []struct {
-		name         string
-		config       map[string]interface{}
-		envVars      map[string]string
-		expectedPort string
+		name           string
+		config         map[string]interface{}
+		expectedScheme string
+		expectedHost   string
+		expectedPort   int
 	}{
 		{
-			name:         "default port",
-			config:       map[string]interface{}{},
-			envVars:      map[string]string{},
-			expectedPort: "8080",
+			name:           "default values when no config",
+			config:         map[string]interface{}{},
+			expectedScheme: "http",
+			expectedHost:   "localhost",
+			expectedPort:   8000,
 		},
 		{
-			name: "port from config",
+			name: "server config from GoREST injection",
 			config: map[string]interface{}{
-				"port": "3000",
+				"server_scheme": "https",
+				"server_host":   "api.example.com",
+				"server_port":   443,
 			},
-			envVars:      map[string]string{},
-			expectedPort: "3000",
+			expectedScheme: "https",
+			expectedHost:   "api.example.com",
+			expectedPort:   443,
 		},
 		{
-			name:   "port from PORT env var",
-			config: map[string]interface{}{},
-			envVars: map[string]string{
-				"PORT": "5000",
-			},
-			expectedPort: "5000",
-		},
-		{
-			name:   "port from GOREST_PORT env var",
-			config: map[string]interface{}{},
-			envVars: map[string]string{
-				"GOREST_PORT": "9000",
-			},
-			expectedPort: "9000",
-		},
-		{
-			name: "config takes precedence over env",
+			name: "partial config with defaults",
 			config: map[string]interface{}{
-				"port": "4000",
+				"server_port": 3000,
 			},
-			envVars: map[string]string{
-				"PORT": "5000",
+			expectedScheme: "http",
+			expectedHost:   "localhost",
+			expectedPort:   3000,
+		},
+		{
+			name: "custom scheme only",
+			config: map[string]interface{}{
+				"server_scheme": "https",
 			},
-			expectedPort: "4000",
+			expectedScheme: "https",
+			expectedHost:   "localhost",
+			expectedPort:   8000,
+		},
+		{
+			name: "custom host only",
+			config: map[string]interface{}{
+				"server_host": "0.0.0.0",
+			},
+			expectedScheme: "http",
+			expectedHost:   "0.0.0.0",
+			expectedPort:   8000,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variables
-			for key, value := range tt.envVars {
-				os.Setenv(key, value)
-				defer os.Unsetenv(key)
-			}
-
-			app := fiber.New()
 			plugin := NewPlugin().(*StatusPlugin)
 
 			if err := plugin.Initialize(tt.config); err != nil {
 				t.Fatalf("Initialize failed: %v", err)
 			}
 
-			port := plugin.detectPort(app)
-			if port != tt.expectedPort {
-				t.Errorf("expected port %s, got %s", tt.expectedPort, port)
+			if plugin.scheme != tt.expectedScheme {
+				t.Errorf("expected scheme %s, got %s", tt.expectedScheme, plugin.scheme)
+			}
+			if plugin.host != tt.expectedHost {
+				t.Errorf("expected host %s, got %s", tt.expectedHost, plugin.host)
+			}
+			if plugin.port != tt.expectedPort {
+				t.Errorf("expected port %d, got %d", tt.expectedPort, plugin.port)
 			}
 		})
 	}
