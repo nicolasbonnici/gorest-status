@@ -64,7 +64,6 @@ func (p *StatusPlugin) Initialize(config map[string]interface{}) error {
 		p.port = 8000 // default port
 	}
 
-	logger.Log.Debug("Status plugin server config", "scheme", p.scheme, "host", p.host, "port", p.port)
 	return nil
 }
 
@@ -95,6 +94,7 @@ func (p *StatusPlugin) SetupEndpoints(app *fiber.App) error {
 	}
 
 	logger.Log.Info("Health check available", "url", fmt.Sprintf("%s/%s", url, p.endpoint))
+
 	return nil
 }
 
