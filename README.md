@@ -90,7 +90,7 @@ plugins:
       endpoint: "health"
 ```
 
-This will display: `Health check available at https://api.example.com/health` (ports 80 with http scheme and 443 with https scheme are omited).
+This will display: `Health check available at https://api.example.com/health` (ports 80 with http scheme and 443 with https scheme are omitted).
 
 ## Features
 
