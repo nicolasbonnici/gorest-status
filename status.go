@@ -11,8 +11,8 @@ import (
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
-// StatusPlugin provides a status check endpoint
-type StatusPlugin struct {
+// Plugin provides a status check endpoint for health monitoring
+type Plugin struct {
 	db       database.Database
 	endpoint string
 	scheme   string
@@ -21,15 +21,18 @@ type StatusPlugin struct {
 	config   map[string]interface{}
 }
 
+// NewPlugin creates a new instance with default settings
 func NewPlugin() plugin.Plugin {
-	return &StatusPlugin{}
+	return &Plugin{}
 }
 
-func (p *StatusPlugin) Name() string {
+// Name returns the plugin identifier
+func (p *Plugin) Name() string {
 	return "status"
 }
 
-func (p *StatusPlugin) Initialize(config map[string]interface{}) error {
+// Initialize configures the plugin with the provided configuration map
+func (p *Plugin) Initialize(config map[string]interface{}) error {
 	p.config = config
 
 	// Log full config for debugging
@@ -75,13 +78,15 @@ func getConfigKeys(config map[string]interface{}) []string {
 	return keys
 }
 
-func (p *StatusPlugin) Handler() fiber.Handler {
+// Handler returns a no-op middleware handler (status endpoint is registered via SetupEndpoints)
+func (p *Plugin) Handler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return c.Next()
 	}
 }
 
-func (p *StatusPlugin) SetupEndpoints(app *fiber.App) error {
+// SetupEndpoints registers the status check HTTP endpoint
+func (p *Plugin) SetupEndpoints(app *fiber.App) error {
 	logger.Log.Debug("Registering status endpoint", "path", "/"+p.endpoint)
 	app.Get("/"+p.endpoint, p.statusCheckHandler())
 
@@ -98,7 +103,7 @@ func (p *StatusPlugin) SetupEndpoints(app *fiber.App) error {
 	return nil
 }
 
-func (p *StatusPlugin) statusCheckHandler() fiber.Handler {
+func (p *Plugin) statusCheckHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Perform status check
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)

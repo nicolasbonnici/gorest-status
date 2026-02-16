@@ -69,15 +69,15 @@ func (m *mockDatabase) Introspector() database.SchemaIntrospector {
 	return &mockIntrospector{}
 }
 
-func TestStatusPlugin_Name(t *testing.T) {
+func TestPlugin_Name(t *testing.T) {
 	plugin := NewPlugin()
 	if name := plugin.Name(); name != "status" {
 		t.Errorf("expected plugin name 'status', got '%s'", name)
 	}
 }
 
-func TestStatusPlugin_Initialize(t *testing.T) {
-	plugin := NewPlugin().(*StatusPlugin)
+func TestPlugin_Initialize(t *testing.T) {
+	plugin := NewPlugin().(*Plugin)
 
 	config := map[string]interface{}{
 		"database": &mockDatabase{},
@@ -93,9 +93,9 @@ func TestStatusPlugin_Initialize(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_StatusCheckWithDatabase(t *testing.T) {
+func TestPlugin_StatusCheckWithDatabase(t *testing.T) {
 	app := fiber.New()
-	plugin := NewPlugin().(*StatusPlugin)
+	plugin := NewPlugin().(*Plugin)
 
 	// Initialize with healthy database
 	config := map[string]interface{}{
@@ -119,9 +119,9 @@ func TestStatusPlugin_StatusCheckWithDatabase(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_StatusCheckDatabaseDown(t *testing.T) {
+func TestPlugin_StatusCheckDatabaseDown(t *testing.T) {
 	app := fiber.New()
-	plugin := &StatusPlugin{
+	plugin := &Plugin{
 		db:       &mockDatabase{pingError: errors.New("connection failed")},
 		endpoint: "status",
 		scheme:   "http",
@@ -143,9 +143,9 @@ func TestStatusPlugin_StatusCheckDatabaseDown(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_StatusCheckNoDatabase(t *testing.T) {
+func TestPlugin_StatusCheckNoDatabase(t *testing.T) {
 	app := fiber.New()
-	plugin := NewPlugin().(*StatusPlugin)
+	plugin := NewPlugin().(*Plugin)
 
 	// Initialize without database
 	config := map[string]interface{}{}
@@ -167,9 +167,9 @@ func TestStatusPlugin_StatusCheckNoDatabase(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_CustomEndpoint(t *testing.T) {
+func TestPlugin_CustomEndpoint(t *testing.T) {
 	app := fiber.New()
-	plugin := NewPlugin().(*StatusPlugin)
+	plugin := NewPlugin().(*Plugin)
 
 	// Initialize with custom endpoint
 	config := map[string]interface{}{
@@ -205,7 +205,7 @@ func TestStatusPlugin_CustomEndpoint(t *testing.T) {
 	}
 }
 
-func TestStatusPlugin_ServerConfigParsing(t *testing.T) {
+func TestPlugin_ServerConfigParsing(t *testing.T) {
 	tests := []struct {
 		name           string
 		config         map[string]interface{}
@@ -262,7 +262,7 @@ func TestStatusPlugin_ServerConfigParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plugin := NewPlugin().(*StatusPlugin)
+			plugin := NewPlugin().(*Plugin)
 
 			if err := plugin.Initialize(tt.config); err != nil {
 				t.Fatalf("Initialize failed: %v", err)
