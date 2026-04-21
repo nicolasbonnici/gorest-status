@@ -86,9 +86,9 @@ func (p *Plugin) Handler() fiber.Handler {
 }
 
 // SetupEndpoints registers the status check HTTP endpoint
-func (p *Plugin) SetupEndpoints(app *fiber.App) error {
+func (p *Plugin) SetupEndpoints(router fiber.Router) error {
 	logger.Log.Debug("Registering status endpoint", "path", "/"+p.endpoint)
-	app.Get("/"+p.endpoint, p.statusCheckHandler())
+	router.Get("/"+p.endpoint, p.statusCheckHandler())
 
 	port := fmt.Sprintf("%d", p.port)
 
