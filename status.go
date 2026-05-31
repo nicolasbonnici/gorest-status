@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/database"
 	"github.com/nicolasbonnici/gorest/logger"
 	"github.com/nicolasbonnici/gorest/plugin"
@@ -80,7 +80,7 @@ func getConfigKeys(config map[string]interface{}) []string {
 
 // Handler returns a no-op middleware handler (status endpoint is registered via SetupEndpoints)
 func (p *Plugin) Handler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		return c.Next()
 	}
 }
@@ -104,7 +104,7 @@ func (p *Plugin) SetupEndpoints(router fiber.Router) error {
 }
 
 func (p *Plugin) statusCheckHandler() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// Perform status check
 		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 		defer cancel()
