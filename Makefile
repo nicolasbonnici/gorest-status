@@ -1,4 +1,4 @@
-.PHONY: help test lint lint-fix build clean install audit
+.PHONY: help test lint lint-fix build clean install
 
 # Add Go bin to PATH for all targets
 GOPATH ?= $(shell go env GOPATH)
@@ -12,7 +12,6 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Quality Tools:"
-	@echo "  make audit      - Run all Go Report Card quality checks (gofmt, vet, staticcheck, etc.)"
 	@echo "  make lint       - Run golangci-lint"
 	@echo "  make lint-fix   - Run golangci-lint with auto-fix"
 
@@ -52,75 +51,8 @@ install: ## Install dependencies, dev tools, and git hooks
 	@echo ""
 	@echo "Next steps:"
 	@echo "  • Run 'make test' to verify your setup"
-	@echo "  • Run 'make audit' to check code quality"
+	@echo "  • Run 'make lint' to check code quality"
 	@echo "  • See 'make help' for all available commands"
-audit: ## Run all Go Report Card quality checks
-	@echo "========================================"
-	@echo "  Go Report Card Quality Checks"
-	@echo "========================================"
-	@echo ""
-	@echo "[1/7] Checking formatting (gofmt -s)..."
-	@unformatted=$$(gofmt -s -l . | grep -v '^vendor/' | grep -v 'generated/' || true); \
-	if [ -n "$$unformatted" ]; then \
-		echo "❌ The following files need formatting:"; \
-		echo "$$unformatted"; \
-		echo "   Run 'make lint-fix' to fix"; \
-		exit 1; \
-	fi
-	@echo "✓ gofmt passed"
-	@echo ""
-	@echo "[2/7] Running go vet..."
-	@packages=$$(go list ./... 2>/dev/null || true); \
-	if [ -n "$$packages" ]; then \
-		go vet $$packages; \
-	fi
-	@echo "✓ go vet passed"
-	@echo ""
-	@echo "[3/7] Running staticcheck..."
-	@packages=$$(go list ./... 2>/dev/null || true); \
-	if [ -n "$$packages" ]; then \
-		staticcheck $$packages; \
-	fi
-	@echo "✓ staticcheck passed"
-	@echo ""
-	@echo "[4/7] Running ineffassign..."
-	@ineffassign ./...
-	@echo "✓ ineffassign passed"
-	@echo ""
-	@echo "[5/7] Running misspell..."
-	@misspell -error $$(find . -type f -name '*.go' -o -name '*.md' -o -name '*.yaml' -o -name '*.yml' | grep -v vendor | grep -v generated | grep -v .git)
-	@echo "✓ misspell passed"
-	@echo ""
-	@echo "[6/7] Running errcheck..."
-	@packages=$$(go list ./... 2>/dev/null || true); \
-	if [ -n "$$packages" ]; then \
-		errcheck -ignoretests $$packages 2>&1 || \
-		(echo "⚠️  errcheck failed (known issue with go1.25.1 - will be fixed in CI)" && exit 0); \
-	fi
-	@echo "✓ errcheck passed (or skipped)"
-	@echo ""
-	@echo "[7/7] Running gocyclo (threshold: 45)..."
-	@gocyclo_output=$$(gocyclo -over 45 . | grep -v 'vendor/' | grep -v 'generated/' | grep -v '_test.go' || true); \
-	if [ -n "$$gocyclo_output" ]; then \
-		echo "❌ Functions with cyclomatic complexity > 45:"; \
-		echo "$$gocyclo_output"; \
-		exit 1; \
-	fi
-	@echo "✓ gocyclo passed"
-	@echo ""
-	@echo "========================================"
-	@echo "✅ All quality checks passed!"
-	@echo "========================================"
-	@echo ""
-	@echo "Quality Summary:"
-	@echo "  ✓ gofmt -s (formatting)"
-	@echo "  ✓ go vet (correctness)"
-	@echo "  ✓ staticcheck (static analysis)"
-	@echo "  ✓ ineffassign (ineffectual assignments)"
-	@echo "  ✓ misspell (spelling)"
-	@echo "  ✓ errcheck (error handling)"
-	@echo "  ✓ gocyclo (complexity ≤ 45)"
-	@echo ""
 
 test: ## Run tests with coverage
 	@echo "Running tests..."
@@ -130,7 +62,7 @@ test: ## Run tests with coverage
 	@go tool cover -func=coverage.out
 	@rm -f coverage.out
 
-lint: ## Run linter
+lint: ## Run all quality checks (gofmt, vet, staticcheck, misspell, gocyclo, errcheck)
 	@echo "Running golangci-lint..."
 	@$$(go env GOPATH)/bin/golangci-lint run ./...
 
