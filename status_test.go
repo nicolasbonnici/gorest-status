@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/nicolasbonnici/gorest/database"
@@ -13,21 +15,23 @@ import (
 // mockDatabase implements a minimal database.Database interface for testing
 type mockDatabase struct {
 	pingError error
+	pingCount atomic.Int32
 }
 
 func (m *mockDatabase) Ping(ctx context.Context) error {
+	m.pingCount.Add(1)
 	return m.pingError
 }
 
-func (m *mockDatabase) QueryRow(ctx context.Context, query string, args ...interface{}) database.Row {
+func (m *mockDatabase) QueryRow(ctx context.Context, query string, args ...any) database.Row {
 	return nil
 }
 
-func (m *mockDatabase) Query(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
+func (m *mockDatabase) Query(ctx context.Context, query string, args ...any) (database.Rows, error) {
 	return nil, nil
 }
 
-func (m *mockDatabase) Exec(ctx context.Context, query string, args ...interface{}) (database.Result, error) {
+func (m *mockDatabase) Exec(ctx context.Context, query string, args ...any) (database.Result, error) {
 	return nil, nil
 }
 
@@ -79,7 +83,7 @@ func TestPlugin_Name(t *testing.T) {
 func TestPlugin_Initialize(t *testing.T) {
 	plugin := NewPlugin().(*Plugin)
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"database": &mockDatabase{},
 	}
 
@@ -98,7 +102,7 @@ func TestPlugin_StatusCheckWithDatabase(t *testing.T) {
 	plugin := NewPlugin().(*Plugin)
 
 	// Initialize with healthy database
-	config := map[string]interface{}{
+	config := map[string]any{
 		"database": &mockDatabase{pingError: nil},
 	}
 	if err := plugin.Initialize(config); err != nil {
@@ -148,7 +152,7 @@ func TestPlugin_StatusCheckNoDatabase(t *testing.T) {
 	plugin := NewPlugin().(*Plugin)
 
 	// Initialize without database
-	config := map[string]interface{}{}
+	config := map[string]any{}
 	if err := plugin.Initialize(config); err != nil {
 		t.Fatalf("Initialize failed: %v", err)
 	}
@@ -172,7 +176,7 @@ func TestPlugin_CustomEndpoint(t *testing.T) {
 	plugin := NewPlugin().(*Plugin)
 
 	// Initialize with custom endpoint
-	config := map[string]interface{}{
+	config := map[string]any{
 		"endpoint": "health",
 	}
 	if err := plugin.Initialize(config); err != nil {
@@ -205,24 +209,79 @@ func TestPlugin_CustomEndpoint(t *testing.T) {
 	}
 }
 
+func TestPlugin_HealthCacheCoalescesPings(t *testing.T) {
+	app := fiber.New()
+	db := &mockDatabase{}
+	plugin := NewPlugin().(*Plugin)
+	if err := plugin.Initialize(map[string]any{"database": db}); err != nil {
+		t.Fatalf("Initialize failed: %v", err)
+	}
+	if err := plugin.SetupEndpoints(app); err != nil {
+		t.Fatalf("SetupEndpoints failed: %v", err)
+	}
+
+	for i := 0; i < 5; i++ {
+		resp, err := app.Test(httptest.NewRequest("GET", "/status", nil))
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		}
+	}
+
+	if got := db.pingCount.Load(); got != 1 {
+		t.Errorf("expected 1 ping for a burst within TTL, got %d", got)
+	}
+}
+
+func TestPlugin_HealthCacheExpires(t *testing.T) {
+	app := fiber.New()
+	db := &mockDatabase{}
+	plugin := NewPlugin().(*Plugin)
+	if err := plugin.Initialize(map[string]any{
+		"database":         db,
+		"health_cache_ttl": time.Duration(0),
+	}); err != nil {
+		t.Fatalf("Initialize failed: %v", err)
+	}
+	if err := plugin.SetupEndpoints(app); err != nil {
+		t.Fatalf("SetupEndpoints failed: %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		resp, err := app.Test(httptest.NewRequest("GET", "/status", nil))
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		if resp.StatusCode != 200 {
+			t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		}
+	}
+
+	if got := db.pingCount.Load(); got != 3 {
+		t.Errorf("expected 3 pings with caching disabled, got %d", got)
+	}
+}
+
 func TestPlugin_ServerConfigParsing(t *testing.T) {
 	tests := []struct {
 		name           string
-		config         map[string]interface{}
+		config         map[string]any
 		expectedScheme string
 		expectedHost   string
 		expectedPort   int
 	}{
 		{
 			name:           "default values when no config",
-			config:         map[string]interface{}{},
+			config:         map[string]any{},
 			expectedScheme: "http",
 			expectedHost:   "localhost",
 			expectedPort:   8000,
 		},
 		{
 			name: "server config from GoREST injection",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"server_scheme": "https",
 				"server_host":   "api.example.com",
 				"server_port":   443,
@@ -233,7 +292,7 @@ func TestPlugin_ServerConfigParsing(t *testing.T) {
 		},
 		{
 			name: "partial config with defaults",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"server_port": 3000,
 			},
 			expectedScheme: "http",
@@ -242,7 +301,7 @@ func TestPlugin_ServerConfigParsing(t *testing.T) {
 		},
 		{
 			name: "custom scheme only",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"server_scheme": "https",
 			},
 			expectedScheme: "https",
@@ -251,7 +310,7 @@ func TestPlugin_ServerConfigParsing(t *testing.T) {
 		},
 		{
 			name: "custom host only",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"server_host": "0.0.0.0",
 			},
 			expectedScheme: "http",

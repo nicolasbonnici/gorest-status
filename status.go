@@ -3,6 +3,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -11,6 +12,10 @@ import (
 	"github.com/nicolasbonnici/gorest/plugin"
 )
 
+// defaultHealthCacheTTL bounds how long a database Ping result is reused between
+// probes. It defaults short so a transient outage surfaces almost immediately.
+const defaultHealthCacheTTL = time.Second
+
 // Plugin provides a status check endpoint for health monitoring
 type Plugin struct {
 	db       database.Database
@@ -18,7 +23,15 @@ type Plugin struct {
 	scheme   string
 	host     string
 	port     int
-	config   map[string]interface{}
+	config   map[string]any
+
+	// healthTTL is the window during which a Ping result is served from cache.
+	// A zero value disables caching so every request pings the database.
+	healthTTL time.Duration
+
+	healthMu     sync.Mutex
+	healthExpiry time.Time
+	healthErr    error
 }
 
 // NewPlugin creates a new instance with default settings
@@ -32,7 +45,7 @@ func (p *Plugin) Name() string {
 }
 
 // Initialize configures the plugin with the provided configuration map
-func (p *Plugin) Initialize(config map[string]interface{}) error {
+func (p *Plugin) Initialize(config map[string]any) error {
 	p.config = config
 
 	// Log full config for debugging
@@ -40,6 +53,11 @@ func (p *Plugin) Initialize(config map[string]interface{}) error {
 
 	if db, ok := config["database"].(database.Database); ok {
 		p.db = db
+	}
+
+	p.healthTTL = defaultHealthCacheTTL
+	if ttl, ok := config["health_cache_ttl"].(time.Duration); ok && ttl >= 0 {
+		p.healthTTL = ttl
 	}
 	if endpoint, ok := config["endpoint"].(string); ok {
 		p.endpoint = endpoint
@@ -70,7 +88,7 @@ func (p *Plugin) Initialize(config map[string]interface{}) error {
 	return nil
 }
 
-func getConfigKeys(config map[string]interface{}) []string {
+func getConfigKeys(config map[string]any) []string {
 	keys := make([]string, 0, len(config))
 	for k := range config {
 		keys = append(keys, k)
@@ -118,7 +136,7 @@ func (p *Plugin) statusCheckHandler() fiber.Handler {
 			})
 		}
 
-		if err := p.db.Ping(ctx); err != nil {
+		if err := p.cachedPing(ctx); err != nil {
 			return c.Status(503).JSON(fiber.Map{
 				"status": "unhealthy",
 				"database": fiber.Map{
@@ -135,4 +153,24 @@ func (p *Plugin) statusCheckHandler() fiber.Handler {
 			},
 		})
 	}
+}
+
+// cachedPing returns the most recent database Ping result while it is still
+// within healthTTL. The lock is intentionally held across the Ping so a burst
+// of probes racing an expired entry collapses into a single round-trip: the
+// first goroutine refreshes, the rest observe the fresh entry and return.
+func (p *Plugin) cachedPing(ctx context.Context) error {
+	p.healthMu.Lock()
+	defer p.healthMu.Unlock()
+
+	if p.healthTTL > 0 && time.Now().Before(p.healthExpiry) {
+		return p.healthErr
+	}
+
+	err := p.db.Ping(ctx)
+	if p.healthTTL > 0 {
+		p.healthErr = err
+		p.healthExpiry = time.Now().Add(p.healthTTL)
+	}
+	return err
 }
